@@ -1,0 +1,479 @@
+> library(quantmod)
+Loading required package: xts
+Loading required package: zoo
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+Loading required package: TTR
+Registered S3 method overwritten by 'quantmod':
+  method            from
+  as.zoo.data.frame zoo 
+Warning messages:
+1: package ‘quantmod’ was built under R version 4.2.3 
+2: package ‘xts’ was built under R version 4.2.3 
+3: package ‘zoo’ was built under R version 4.2.3 
+4: package ‘TTR’ was built under R version 4.2.3 
+> library(ggplot2)
+> library(forecast)
+Warning message:
+package ‘forecast’ was built under R version 4.2.3 
+> library(tseries)
+
+    ‘tseries’ version: 0.10-55
+
+    ‘tseries’ is a package for time series analysis and computational finance.
+
+    See ‘library(help="tseries")’ for details.
+
+Warning message:
+package ‘tseries’ was built under R version 4.2.3 
+> library(rugarch)
+Loading required package: parallel
+
+Attaching package: ‘rugarch’
+
+The following object is masked from ‘package:stats’:
+
+    sigma
+
+Warning message:
+package ‘rugarch’ was built under R version 4.2.3 
+> library(prophet)
+Loading required package: Rcpp
+Loading required package: rlang
+Warning messages:
+1: package ‘prophet’ was built under R version 4.2.3 
+2: package ‘rlang’ was built under R version 4.2.3 
+> library(tsfknn)
+Warning message:
+package ‘tsfknn’ was built under R version 4.2.3 
+> getSymbols("^GSPC",src="yahoo",from="2015-01-01",to = "2020-06-04")
+[1] "GSPC"
+> date = index(GSPC)
+> date = as.Date(date)
+> head(GSPC)
+           GSPC.Open GSPC.High GSPC.Low GSPC.Close GSPC.Volume GSPC.Adjusted
+2015-01-02   2058.90   2072.36  2046.04    2058.20  2708700000       2058.20
+2015-01-05   2054.44   2054.44  2017.34    2020.58  3799120000       2020.58
+2015-01-06   2022.15   2030.25  1992.44    2002.61  4460110000       2002.61
+2015-01-07   2005.55   2029.61  2005.55    2025.90  3805480000       2025.90
+2015-01-08   2030.61   2064.08  2030.61    2062.14  3934010000       2062.14
+2015-01-09   2063.45   2064.43  2038.33    2044.81  3364140000       2044.81
+> chartSeries(GSPC,TA = NULL)
+> chartSeries(GSPC,TA=c(addVo(),addBBands(),addMACD()))
+> print(adf.test(GSPC$GSPC.Close))
+
+	Augmented Dickey-Fuller Test
+
+data:  GSPC$GSPC.Close
+Dickey-Fuller = -4.2322, Lag order = 11, p-value = 0.01
+alternative hypothesis: stationary
+
+Warning message:
+In adf.test(GSPC$GSPC.Close) : p-value smaller than printed p-value
+> par(mfrow = c(1, 2))
+> acf(GSPC$GSPC.Close)
+> pacf(GSPC$GSPC.Close)
+> par(mfrow = c(1, 1))
+> modelfit <-auto.arima(GSPC$GSPC.Close, lambda = "auto")
+> summary(modelfit)
+Series: GSPC$GSPC.Close 
+ARIMA(5,1,2) 
+Box Cox transformation: lambda= -0.7182302 
+
+Coefficients:
+          ar1      ar2     ar3     ar4     ar5     ma1     ma2
+      -1.6502  -0.8036  0.0364  0.0502  0.0434  1.5259  0.6653
+s.e.   0.0865   0.0946  0.0569  0.0545  0.0362  0.0827  0.0695
+
+sigma^2 = 3.071e-09:  log likelihood = 11849.48
+AIC=-23682.95   AICc=-23682.85   BIC=-23641.21
+
+Training set error measures:
+                  ME    RMSE      MAE        MPE      MAPE     MASE        ACF1
+Training set 1.21171 31.6567 17.56131 0.04474341 0.7083609 1.016054 -0.02535373
+> plot(resid(modelfit),ylab="Residuals",main="Residuals(Arima(5,1,2)) vs. Time")
+> plot(forecast(modelfit,h=30))
+> hist(resid(modelfit),freq=F,ylim=c(0,9500),main="Histogram of Residuals")
+> e=resid(modelfit)
+> curve(dnorm(x, mean=mean(e), sd=sd(e)), add=TRUE, col="darkred")
+> tsdiag(modelfit)
+> Box.test(modelfit$residuals, lag= 2, type="Ljung-Box")
+
+	Box-Ljung test
+
+data:  modelfit$residuals
+X-squared = 1.1846, df = 2, p-value = 0.553
+
+> Box.test(modelfit$residuals, type="Ljung-Box")
+
+	Box-Ljung test
+
+data:  modelfit$residuals
+X-squared = 0.76413, df = 1, p-value = 0.382
+
+> plot(as.ts(GSPC$GSPC.Close))
+> lines(modelfit$fitted,col="red")
+> price_forecast <- forecast(modelfit,h=30)
+> plot(price_forecast)
+> head(price_forecast$mean)
+Time Series:
+Start = 1365 
+End = 1370 
+Frequency = 1 
+[1] 3113.466 3120.945 3119.509 3118.770 3122.790 3116.668
+> head(price_forecast$upper)
+Time Series:
+Start = 1365 
+End = 1370 
+Frequency = 1 
+          80%      95%
+1365 3186.279 3226.017
+1366 3218.778 3272.723
+1367 3240.074 3307.182
+1368 3259.731 3338.852
+1369 3280.425 3369.502
+1370 3292.074 3391.927
+> head(price_forecast$lower)
+Time Series:
+Start = 1365 
+End = 1370 
+Frequency = 1 
+          80%      95%
+1365 3043.467 3007.498
+1366 3028.112 2980.871
+1367 3006.450 2949.417
+1368 2987.967 2922.486
+1369 2977.736 2905.564
+1370 2956.728 2877.673
+> N = length (GSPC$GSPC.Close)
+> n = 0.8*N
+> train = GSPC$GSPC.Close[1:n, ]
+> test = GSPC$GSPC.Close[(n+1):N,]
+> trainarimafit <- auto.arima(train$GSPC.Close ,lambda= "auto")
+> summary(trainarimafit)
+Series: train$GSPC.Close 
+ARIMA(2,1,0) with drift 
+Box Cox transformation: lambda= -0.2776365 
+
+Coefficients:
+          ar1      ar2  drift
+      -0.0180  -0.0527      0
+s.e.   0.0303   0.0303      0
+
+sigma^2 = 1.008e-06:  log likelihood = 5985.14
+AIC=-11962.28   AICc=-11962.24   BIC=-11942.31
+
+Training set error measures:
+                     ME     RMSE     MAE           MPE      MAPE    MASE         ACF1
+Training set 0.09425948 20.05838 13.5905 -0.0009663183 0.5828317 1.00012 -0.003309726
+> predlen= length(test)
+> trainarima_fit <- forecast(trainarimafit, h= predlen)
+> meanvalues<- as.vector(trainarima_fit$mean)
+> precios <- as.vector(test$GSPC.Close)
+> plot(meanvalues, type = "l",col="red")
+> lines(precios, type = "l")
+> fitarfima = autoarfima(data = GSPC$GSPC.Close, ar.max = 5, 
++                        ma.max = 2,criterion = "AIC", method = "full")
+There were 23 warnings (use warnings() to see them)
+> fitarfima$fit
+
+*----------------------------------*
+*          ARFIMA Model Fit        *
+*----------------------------------*
+Mean Model	: ARFIMA(5,0,2)
+Distribution	: norm 
+
+Optimal Parameters
+------------------------------------
+         Estimate  Std. Error  t value Pr(>|t|)
+mu    2015.426128    4.437906 454.1390 0.000000
+ar1     -0.699922    0.053397 -13.1079 0.000000
+ar2      0.971477    0.039537  24.5712 0.000000
+ar3      0.915233    0.063085  14.5080 0.000000
+ar4     -0.122061    0.035448  -3.4434 0.000575
+ar5     -0.095176    0.039782  -2.3925 0.016736
+ma1      1.622314    0.043891  36.9627 0.000000
+ma2      0.722825    0.034981  20.6631 0.000000
+sigma   28.695327    0.577507  49.6883 0.000000
+
+Robust Standard Errors:
+         Estimate  Std. Error   t value Pr(>|t|)
+mu    2015.426128    5.841765 345.00292 0.000000
+ar1     -0.699922    0.150837  -4.64025 0.000003
+ar2      0.971477    0.057715  16.83238 0.000000
+ar3      0.915233    0.185521   4.93331 0.000001
+ar4     -0.122061    0.050323  -2.42557 0.015284
+ar5     -0.095176    0.104528  -0.91053 0.362541
+ma1      1.622314    0.079630  20.37304 0.000000
+ma2      0.722825    0.034408  21.00765 0.000000
+sigma   28.695327    4.091083   7.01412 0.000000
+
+LogLikelihood : -6514.02 
+
+Information Criteria
+------------------------------------
+                   
+Akaike       9.5645
+Bayes        9.5990
+Shibata      9.5645
+Hannan-Quinn 9.5774
+
+Weighted Ljung-Box Test on Standardized Residuals
+------------------------------------
+                         statistic  p-value
+Lag[1]                       2.584 1.08e-01
+Lag[2*(p+q)+(p+q)-1][20]    38.218 0.00e+00
+Lag[4*(p+q)+(p+q)-1][34]    55.899 2.22e-16
+
+H0 : No serial correlation
+
+Weighted Ljung-Box Test on Standardized Squared Residuals
+------------------------------------
+                        statistic p-value
+Lag[1]                      354.3       0
+Lag[2*(p+q)+(p+q)-1][2]     530.5       0
+Lag[4*(p+q)+(p+q)-1][5]     921.4       0
+
+
+ARCH LM Tests
+------------------------------------
+             Statistic DoF P-Value
+ARCH Lag[2]      466.6   2       0
+ARCH Lag[5]      509.7   5       0
+ARCH Lag[10]     562.5  10       0
+
+Nyblom stability test
+------------------------------------
+Joint Statistic:  11.8323
+Individual Statistics:             
+mu    0.09546
+ar1   2.08104
+ar2   2.15328
+ar3   1.50308
+ar4   2.67608
+ar5   2.26073
+ma1   0.02611
+ma2   0.08301
+sigma 7.01716
+
+Asymptotic Critical Values (10% 5% 1%)
+Joint Statistic:     	 2.1 2.32 2.82
+Individual Statistic:	 0.35 0.47 0.75
+
+
+Elapsed time : 0.3783941 
+
+> garch11closeprice=ugarchspec(variance.model=list(garchOrder=c(1,1)),
++                              mean.model=list(armaOrder=c(3,2)))
+> garch11closepricefit=ugarchfit(spec=garch11closeprice, data=GSPC$GSPC.Close)
+> plot.ts(sigma(garch11closepricefit), ylab="sigma(t)", col="blue")
+> infocriteria(garch11closepricefit)
+                     
+Akaike       8.765945
+Bayes        8.800376
+Shibata      8.765859
+Hannan-Quinn 8.778833
+> garchres <- data.frame(residuals(garch11closepricefit))
+> plot(garchres$residuals.garch11closepricefit)
+> garchres <- data.frame(residuals(garch11closepricefit, standardize=TRUE))
+> qqnorm(garchres$residuals.garch11closepricefit,standardize=TRUE)
+Warning messages:
+1: In plot.window(...) : "standardize" is not a graphical parameter
+2: In plot.xy(xy, type, ...) : "standardize" is not a graphical parameter
+3: In axis(side = side, at = at, labels = labels, ...) :
+  "standardize" is not a graphical parameter
+4: In axis(side = side, at = at, labels = labels, ...) :
+  "standardize" is not a graphical parameter
+5: In box(...) : "standardize" is not a graphical parameter
+6: In title(...) : "standardize" is not a graphical parameter
+> garchres <- data.frame(residuals(garch11closepricefit, standardize=TRUE)^2)
+There were 12 warnings (use warnings() to see them)
+> Box.test(garchres$residuals.garch11closepricefit..standardize...TRUE..2, type="Ljung-Box")
+
+	Box-Ljung test
+
+data:  garchres$residuals.garch11closepricefit..standardize...TRUE..2
+X-squared = 1.2355, df = 1, p-value = 0.2663
+
+> garchforecast <- ugarchforecast(garch11closepricefit, n.ahead = 30 )
+> plot(garchforecast)
+
+Make a plot selection (or 0 to exit): 
+
+1:   Time Series Prediction (unconditional)
+2:   Time Series Prediction (rolling)
+3:   Sigma Prediction (unconditional)
+4:   Sigma Prediction (rolling)
+
+Selection: 1
+
+Make a plot selection (or 0 to exit): 
+
+1:   Time Series Prediction (unconditional)
+2:   Time Series Prediction (rolling)
+3:   Sigma Prediction (unconditional)
+4:   Sigma Prediction (rolling)
+
+Selection: 2
+Error in .plot.garchforecast.2(x) : 
+n.roll less than 5!...does not make sense to provide this plot.
+> 0
+[1] 0
+> df <- data.frame(ds = index(GSPC),
++                  y = as.numeric(GSPC[,4]))
+> prophet_pred = prophet(df)
+Disabling daily seasonality. Run prophet with daily.seasonality=TRUE to override this.
+Error: .onLoad failed in loadNamespace() for 'rstan', details:
+  call: ggplot2::element_line(linewidth = 1)
+  error: unused argument (linewidth = 1)
+> dataprediction = data.frame(fcastprophet$ds,fcastprophet$yhat)
+Error in data.frame(fcastprophet$ds, fcastprophet$yhat) : 
+  object 'fcastprophet' not found
+> library(ggplot2)
+> install.packages("ggplot2")
+Error in install.packages : Updating loaded packages
+
+Restarting R session...
+
+Loading required package: rugarch
+Loading required package: parallel
+Error: package or namespace load failed for ‘rugarch’ in isNamespace(ns):
+ reached elapsed time limit
+Loading required package: rugarch
+
+Attaching package: ‘rugarch’
+
+The following object is masked from ‘package:stats’:
+
+    sigma
+
+> install.packages("ggplot2")
+WARNING: Rtools is required to build R packages but is not currently installed. Please download and install the appropriate version of Rtools before proceeding:
+
+https://cran.rstudio.com/bin/windows/Rtools/
+Installing package into ‘C:/Users/priya/AppData/Local/R/win-library/4.2’
+(as ‘lib’ is unspecified)
+also installing the dependency ‘scales’
+
+trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.2/scales_1.3.0.zip'
+Content type 'application/zip' length 704715 bytes (688 KB)
+downloaded 688 KB
+
+trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.2/ggplot2_3.5.1.zip'
+Content type 'application/zip' length 4955653 bytes (4.7 MB)
+downloaded 4.7 MB
+
+package ‘scales’ successfully unpacked and MD5 sums checked
+package ‘ggplot2’ successfully unpacked and MD5 sums checked
+
+The downloaded binary packages are in
+	C:\Users\priya\AppData\Local\Temp\RtmpIzeB6Y\downloaded_packages
+Warning messages:
+1: package ‘rugarch’ was built under R version 4.2.3 
+2: package ‘rugarch’ was built under R version 4.2.3 
+> library(ggplot2)
+Warning message:
+package ‘ggplot2’ was built under R version 4.2.3 
+> prophet_pred = prophet(df)
+Error in prophet(df) : could not find function "prophet"
+> library(prophet)
+Loading required package: Rcpp
+Loading required package: rlang
+Warning messages:
+1: package ‘prophet’ was built under R version 4.2.3 
+2: package ‘rlang’ was built under R version 4.2.3 
+> prophet_pred = prophet(df)
+Disabling daily seasonality. Run prophet with daily.seasonality=TRUE to override this.
+> future = make_future_dataframe(prophet_pred,periods=30)
+> fcastprophet = predict(prophet_pred,future)
+> dataprediction = data.frame(fcastprophet$ds,fcastprophet$yhat)
+> trainlen = length(GSPC$GSPC.Close)
+> dataprediction = dataprediction[c(1:trainlen),]
+> p= ggplot()+
++   geom_smooth(aes(x= dataprediction$fcastprophet.ds,y=GSPC$GSPC.Close),
++               colour="blue",level=0.99,fill="#69b3a2",se=T)+
++   geom_point(aes(x= dataprediction$fcastprophet.ds,y=dataprediction$fcastprophet.yhat))+
++   xlab("ds")+
++   ylab("y= GSPC.Close")+
++   ggtitle("Training Prediction vs. Real Data:Prophet")
+> p
+Don't know how to automatically pick scale for object of type <xts/zoo>. Defaulting to continuous.
+`geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
+> accuracy(dataprediction$fcastprophet.yhat,df$y)
+Error in accuracy(dataprediction$fcastprophet.yhat, df$y) : 
+  could not find function "accuracy"
+> library(forecast)
+Registered S3 method overwritten by 'quantmod':
+  method            from
+  as.zoo.data.frame zoo 
+This is forecast 8.22.0 
+  Need help getting started? Try the online textbook FPP:
+  http://otexts.com/fpp2/
+Warning message:
+package ‘forecast’ was built under R version 4.2.3 
+> accuracy(dataprediction$fcastprophet.yhat,df$y)
+                    ME     RMSE      MAE        MPE     MAPE
+Test set -0.0002152293 94.16293 63.32461 -0.1362728 2.528756
+> prophet_plot_components(prophet_pred,fcastprophet)
+> df <- data.frame(ds = index(GSPC),
++                  y = as.numeric(GSPC[,4]))
+Error in index(GSPC) : could not find function "index"
+> library(tsfknn)
+Warning message:
+package ‘tsfknn’ was built under R version 4.2.3 
+> df <- data.frame(ds = index(GSPC),
++                  y = as.numeric(GSPC[,4]))
+Error in index(GSPC) : could not find function "index"
+> df <- data.frame(ds = index(GSPC),
++                  y = as.numeric(GSPC[,4]))
+Error in index(GSPC) : could not find function "index"
+> getSymbols("^GSPC",src="yahoo",from="2015-01-01",to = "2020-06-04")
+Error in getSymbols("^GSPC", src = "yahoo", from = "2015-01-01", to = "2020-06-04") : 
+  could not find function "getSymbols"
+> library(quantmod)
+Loading required package: xts
+Loading required package: zoo
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+Loading required package: TTR
+Warning messages:
+1: package ‘quantmod’ was built under R version 4.2.3 
+2: package ‘xts’ was built under R version 4.2.3 
+3: package ‘zoo’ was built under R version 4.2.3 
+4: package ‘TTR’ was built under R version 4.2.3 
+> df <- data.frame(ds = index(GSPC),
++                  y = as.numeric(GSPC[,4]))
+> predknn <- knn_forecasting(df$y, h = 30, lags = 1:30, k = 50, msas = "MIMO")
+> ro <- rolling_origin(predknn)
+> print(ro$global_accu)
+      RMSE        MAE       MAPE 
+179.897388 159.323831   5.334315 
+> autoplot(predknn)
+> lambda = BoxCox.lambda(GSPC$GSPC.Close)
+> dnn_fit = nnetar(GSPC[,4],lambda=lambda)
+> dnn_fit
+Series: GSPC[, 4] 
+Model:  NNAR(11,6) 
+Call:   nnetar(y = GSPC[, 4], lambda = lambda)
+
+Average of 20 networks, each of which is
+a 11-6-1 network with 79 weights
+options were - linear output units 
+
+sigma^2 estimated as 1.189e-09
+> fcast = forecast(dnn_fit,PI=T,h=30)
+> autoplot(fcast)
+> accuracy(dnn_fit)
+                    ME     RMSE      MAE           MPE      MAPE      MASE       ACF1
+Training set 0.2181098 22.75323 15.25364 -0.0006022057 0.6103138 0.8825376 0.01977654
+> 
